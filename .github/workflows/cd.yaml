@@ -20,20 +20,17 @@ jobs:
           REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}
           BOT_TOKEN_SECRET: ${{secrets.BOT_TOKEN}}
         run: |
-          # Архивируем проект
-          tar -czf project.tar.gz .
+           # Архивируем проект, игнорируя изменяющиеся файлы
+          tar --exclude='./.git' --exclude='./node_modules' --warning=no-file-changed -czf project.tar.gz .
 
           # Копируем архив на удаленный сервер
           sshpass -p "$REMOTE_PASSWORD" scp project.tar.gz $REMOTE_USER@$REMOTE_HOST:/root/
 
           # Подключаемся к серверу и разворачиваем проект
           sshpass -p "$REMOTE_PASSWORD" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << EOF
-            # Переходим в домашнюю директорию
             cd /root
-            # Распаковываем архив
             tar -xzf project.tar.gz
             rm project.tar.gz
-            # Запускаем Docker Compose
             docker-compose down
             docker-compose up -d --build
           EOF
