@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3  # Проверить код из репозитория
+        uses: actions/checkout@v3  # Checkout the repository
 
       - name: Log in to Docker Hub
         env:
@@ -21,15 +21,15 @@ jobs:
 
       - name: Build Docker image
         run: |
-          # Проверка наличия Dockerfile
+          # Check if Dockerfile exists
           if [ -f Dockerfile ]; then
-            echo "Dockerfile найден в текущем каталоге."
+            echo "Dockerfile found in the current directory."
           else
-            echo "Dockerfile не найден в текущем каталоге. Убедитесь, что он существует."
+            echo "Dockerfile not found in the current directory. Please make sure it exists."
             exit 1
           fi
 
-          # Сборка Docker-образа
+          # Build Docker image
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/bot_hokky:latest .
 
       - name: Push Docker image to Docker Hub
@@ -44,20 +44,25 @@ jobs:
           BOT_TOKEN_SECRET: ${{ secrets.BOT_TOKEN }}
         run: |
           sshpass -p "$REMOTE_PASSWORD" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << EOF
-            # Проверка наличия Docker и Docker Compose
+            # Check if Docker is installed
             if ! [ -x "$(command -v docker)" ]; then
-              echo 'Ошибка: Docker не установлен.' >&2
-              exit 1
-            fi
-            if ! [ -x "$(command -v docker-compose)" ]; then
-              echo 'Ошибка: Docker Compose не установлен.' >&2
+              echo 'Error: Docker is not installed.' >&2
               exit 1
             fi
 
-            # Pull последней версии Docker-образа
+            # Check if Docker Compose is installed; if not, install it
+            if ! [ -x "$(command -v docker-compose)" ]; then
+              echo 'Docker Compose is not installed. Installing...'
+              sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+            else
+              echo 'Docker Compose is already installed.'
+            fi
+
+            # Pull the latest Docker image
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/bot_hokky:latest
 
-            # Остановка текущих контейнеров и запуск новых
-            docker compose down
-            docker compose up -d --build
+            # Stop existing containers and start new ones
+            docker-compose down
+            docker-compose up -d --build
           EOF
