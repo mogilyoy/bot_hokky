@@ -1,0 +1,45 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install SSH client
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Build and deploy using Docker Compose
+        env:
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}
+          BOT_TOKEN_SECRET: ${{secrets.BOT_TOKEN}}
+        run: |
+          # Архивируем проект
+          tar -czf project.tar.gz .
+
+          # Копируем архив на удаленный сервер
+          sshpass -p "$REMOTE_PASSWORD" scp project.tar.gz $REMOTE_USER@$REMOTE_HOST:/root/
+
+          # Подключаемся к серверу и разворачиваем проект
+          sshpass -p "$REMOTE_PASSWORD" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << EOF
+            # Переходим в домашнюю директорию
+            cd /root
+            # Распаковываем архив
+            tar -xzf project.tar.gz
+            rm project.tar.gz
+            # Запускаем Docker Compose
+            docker-compose down
+            docker-compose up -d --build
+          EOF
+
+      - name: Cleanup
+        run: rm -f project.tar.gz

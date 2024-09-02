@@ -1,0 +1,9 @@
+version: '3'
+services:
+  hokky:
+    build: .
+    image: hokky
+    container_name: hokky_bot
+    restart: unless-stopped
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN_SECRET}

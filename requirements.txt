@@ -1,4 +1,4 @@
 pyTelegramBotAPI
+schedule
 requests
 Pillow
-vk_api
