@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3  # Проверить код из репозитория
+
       - name: Log in to Docker Hub
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -18,6 +21,15 @@ jobs:
 
       - name: Build Docker image
         run: |
+          # Проверка наличия Dockerfile
+          if [ -f Dockerfile ]; then
+            echo "Dockerfile найден в текущем каталоге."
+          else
+            echo "Dockerfile не найден в текущем каталоге. Убедитесь, что он существует."
+            exit 1
+          fi
+
+          # Сборка Docker-образа
           docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/bot_hokky:latest .
 
       - name: Push Docker image to Docker Hub
@@ -32,7 +44,20 @@ jobs:
           BOT_TOKEN_SECRET: ${{ secrets.BOT_TOKEN }}
         run: |
           sshpass -p "$REMOTE_PASSWORD" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << EOF
+            # Проверка наличия Docker и Docker Compose
+            if ! [ -x "$(command -v docker)" ]; then
+              echo 'Ошибка: Docker не установлен.' >&2
+              exit 1
+            fi
+            if ! [ -x "$(command -v docker-compose)" ]; then
+              echo 'Ошибка: Docker Compose не установлен.' >&2
+              exit 1
+            fi
+
+            # Pull последней версии Docker-образа
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/bot_hokky:latest
-            docker-compose down
-            docker-compose up -d --build
+
+            # Остановка текущих контейнеров и запуск новых
+            docker compose down
+            docker compose up -d --build
           EOF
